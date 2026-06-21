@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>EE200 · Audio Fingerprinting</title>
+<style>
+  /* ── Tokens ── */
+  :root {
+    --bg:       #070d14;
+    --surface:  #0d1b2a;
+    --surface2: #112236;
+    --border:   #1a3350;
+    --teal:     #00c9a7;
+    --teal-dim: #00876f;
+    --blue:     #1a6aff;
+    --text:     #c8d8e8;
+    --muted:    #4a6580;
+    --orange:   #ff6b35;
+    --pink:     #e040fb;
+    --green:    #00e676;
+    --radius:   8px;
+    --font-mono: 'JetBrains Mono', 'Fira Mono', monospace;
+    --font-ui:  'Inter', system-ui, sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── Google Fonts ── */
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  /* ── Header ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    background: rgba(7,13,20,0.92);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--teal), var(--blue));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0;
+  }
+  .logo-text { font-size: 15px; font-weight: 600; letter-spacing: 0.01em; }
+  .logo-text span { color: var(--teal); }
+  .logo-sub { font-size: 11px; color: var(--muted); font-family: var(--font-mono); margin-left: 4px; }
+
+  /* ── Tabs ── */
+  nav { display: flex; gap: 0; margin-left: auto; }
+  .tab-btn {
+    background: none; border: none; cursor: pointer;
+    padding: 0 20px; height: 56px;
+    color: var(--muted); font-size: 12px; font-weight: 500;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    font-family: var(--font-mono);
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--teal); border-bottom-color: var(--teal); }
+
+  /* ── Layout ── */
+  main { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── Section labels ── */
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px; letter-spacing: 0.15em;
+    color: var(--muted); text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  h1 { font-size: 26px; font-weight: 600; margin-bottom: 6px; }
+  h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 32px; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .card-label {
+    font-family: var(--font-mono);
+    font-size: 10px; letter-spacing: 0.12em;
+    color: var(--muted); text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  /* ── Upload zone ── */
+  .upload-zone {
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 36px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--teal); background: rgba(0,201,167,0.04); }
+  .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .upload-icon { font-size: 28px; margin-bottom: 10px; }
+  .upload-label { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+  .upload-hint { font-size: 12px; color: var(--muted); }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 22px; border-radius: var(--radius);
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    border: none; transition: opacity 0.15s, transform 0.1s;
+    font-family: var(--font-ui);
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: var(--teal); color: #070d14; }
+  .btn-primary:hover { opacity: 0.88; }
+  .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-ghost {
+    background: transparent; color: var(--teal);
+    border: 1px solid var(--teal-dim);
+  }
+  .btn-ghost:hover { background: rgba(0,201,167,0.08); }
+
+  /* ── Sample clips ── */
+  .samples-label { font-size: 11px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; font-family: var(--font-mono); margin: 20px 0 10px; }
+  .sample-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-radius: 6px;
+    border: 1px solid var(--border);
+    margin-bottom: 6px;
+    background: var(--surface2);
+  }
+  .sample-name { font-family: var(--font-mono); font-size: 12px; flex: 1; }
+  .btn-try {
+    background: var(--teal); color: #070d14;
+    border: none; padding: 5px 14px; border-radius: 5px;
+    font-size: 12px; font-weight: 700; cursor: pointer;
+  }
+  .btn-try:hover { opacity: 0.85; }
+
+  /* ── Pipeline timing bar ── */
+  .pipeline {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    margin: 20px 0; padding: 16px;
+    background: var(--surface2); border-radius: var(--radius);
+    border: 1px solid var(--border);
+  }
+  .pipe-step {
+    flex: 1; min-width: 90px;
+    text-align: center; padding: 10px 6px;
+    border-radius: 6px; border: 1px solid var(--border);
+  }
+  .pipe-step.done { border-color: var(--teal); }
+  .pipe-num { font-family: var(--font-mono); font-size: 10px; color: var(--muted); margin-bottom: 4px; }
+  .pipe-name { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .pipe-time { font-family: var(--font-mono); font-size: 15px; color: var(--teal); font-weight: 600; }
+  .pipe-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+  /* ── Match result banner ── */
+  .match-banner {
+    border: 1px solid var(--teal);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin: 20px 0;
+    background: rgba(0,201,167,0.06);
+    display: none;
+  }
+  .match-banner.show { display: block; }
+  .match-banner.fail { border-color: var(--orange); background: rgba(255,107,53,0.06); }
+  .match-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.15em; color: var(--teal); text-transform: uppercase; margin-bottom: 6px; }
+  .match-banner.fail .match-label { color: var(--orange); }
+  .match-song { font-size: 28px; font-weight: 700; letter-spacing: -0.01em; }
+  .match-score { font-family: var(--font-mono); font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* ── Step cards (spectrogram/constellation/histogram) ── */
+  .step-card { margin-bottom: 20px; }
+  .step-header {
+    display: flex; align-items: baseline; gap: 10px;
+    margin-bottom: 12px;
+  }
+  .step-num {
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--teal); letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .step-title { font-size: 16px; font-weight: 600; }
+  .step-desc { font-size: 13px; color: var(--muted); margin-bottom: 14px; line-height: 1.55; }
+
+  /* ── Canvas plots ── */
+  .plot-wrap {
+    background: #060c12;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+  }
+  .plot-wrap canvas { display: block; width: 100%; height: auto; }
+  .plot-label {
+    position: absolute; top: 8px; right: 10px;
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--muted);
+  }
+
+  /* ── Two-col layout for plots ── */
+  .plot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+  @media (max-width: 640px) { .plot-grid { grid-template-columns: 1fr; } }
+
+  /* ── Candidate bar chart ── */
+  .candidate-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .candidate-name { font-family: var(--font-mono); font-size: 11px; width: 220px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { flex: 1; background: var(--surface2); border-radius: 3px; height: 20px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 3px; background: var(--teal); transition: width 0.6s cubic-bezier(.4,0,.2,1); display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; }
+  .bar-fill.other { background: var(--blue); opacity: 0.5; }
+  .bar-val { font-family: var(--font-mono); font-size: 10px; color: #070d14; font-weight: 700; }
+
+  /* ── Library grid ── */
+  .lib-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px; margin-top: 20px;
+  }
+  .lib-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .lib-card:hover { border-color: var(--teal-dim); }
+  .lib-canvas-wrap { aspect-ratio: 1; background: #060c12; }
+  .lib-canvas-wrap canvas { width: 100%; height: 100%; display: block; }
+  .lib-info { padding: 10px 12px; }
+  .lib-name { font-size: 12px; font-weight: 500; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lib-hashes { font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
+
+  /* ── Batch ── */
+  .batch-file-list { margin: 12px 0; }
+  .batch-file-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono); font-size: 12px;
+  }
+  .batch-file-row:last-child { border-bottom: none; }
+  .bf-name { flex: 1; }
+  .bf-status { width: 120px; color: var(--muted); }
+  .bf-result { width: 200px; color: var(--teal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bf-status.done { color: var(--green); }
+  .bf-status.running { color: var(--orange); }
+
+  /* ── Progress / spinner ── */
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid var(--border);
+    border-top-color: var(--teal);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .progress-bar { height: 2px; background: var(--border); border-radius: 2px; margin: 12px 0; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--teal), var(--blue)); border-radius: 2px; transition: width 0.3s; }
+
+  /* ── Loading overlay ── */
+  #db-loading {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 999; gap: 16px;
+  }
+  #db-loading .big-spinner {
+    width: 48px; height: 48px;
+    border: 3px solid var(--border);
+    border-top-color: var(--teal);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  #db-loading p { font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
+  #db-progress { width: 280px; }
+
+  /* ── Utility ── */
+  .hidden { display: none !important; }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .spacer { height: 20px; }
+  .divider { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+  .text-teal { color: var(--teal); }
+  .text-muted { color: var(--muted); }
+  strong.hl { color: var(--teal); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!-- DB loading overlay -->
+<div id="db-loading">
+  <div class="big-spinner"></div>
+  <p id="db-status">Loading fingerprint database…</p>
+  <div class="progress-bar" style="width:280px"><div class="progress-fill" id="db-progress" style="width:0%"></div></div>
+</div>
+
+<!-- Header -->
+<header>
+  <div class="logo-icon">🎵</div>
+  <div>
+    <div class="logo-text">EE<span>200</span> <span style="color:var(--text);font-weight:400">·</span> Audio Fingerprinting</div>
+  </div>
+  <span class="logo-sub">SIGNALS · SYSTEMS · NETWORKS</span>
+  <nav>
+    <button class="tab-btn active" data-tab="library">◆ Library</button>
+    <button class="tab-btn" data-tab="identify">⊙ Identify</button>
+    <button class="tab-btn" data-tab="batch">▤ Batch</button>
+  </nav>
+</header>
+
+<main>
+
+  <!-- ══════════════ LIBRARY TAB ══════════════ -->
+  <div class="tab-panel active" id="tab-library">
+    <div class="eyebrow">Song Database</div>
+    <h1>Indexed Library</h1>
+    <p class="subtitle">50 songs pre-indexed as spectrogram fingerprints. Drop a clip in the Identify tab to match against this library.</p>
+    <div class="lib-grid" id="lib-grid"></div>
+  </div>
+
+  <!-- ══════════════ IDENTIFY TAB ══════════════ -->
+  <div class="tab-panel" id="tab-identify">
+    <div class="eyebrow">Search</div>
+    <h1>Identify a Clip</h1>
+    <p class="subtitle">Upload any short audio clip — the system will fingerprint it and find the matching song.</p>
+
+    <div class="card">
+      <div class="card-label">Upload clip</div>
+      <div class="upload-zone" id="id-drop">
+        <input type="file" id="id-file" accept="audio/*"/>
+        <div class="upload-icon">⬆</div>
+        <div class="upload-label">Drop audio file or click to browse</div>
+        <div class="upload-hint">WAV · MP3 · FLAC · OGG · M4A &nbsp;·&nbsp; up to 200 MB</div>
+      </div>
+      <div id="id-filename" class="text-muted" style="margin-top:10px;font-family:var(--font-mono);font-size:12px;"></div>
+
+      <div class="samples-label">or try a sample</div>
+      <div id="sample-list"></div>
+
+      <div class="spacer"></div>
+      <button class="btn btn-primary" id="id-btn" disabled>Identify</button>
+    </div>
+
+    <!-- Pipeline timing -->
+    <div class="pipeline hidden" id="pipeline">
+      <div class="pipe-step" id="ps-1"><div class="pipe-num">① SPECTROGRAM</div><div class="pipe-time" id="pt-1">—</div><div class="pipe-sub" id="ps-1-sub"></div></div>
+      <div class="pipe-step" id="ps-2"><div class="pipe-num">② CONSTELLATION</div><div class="pipe-time" id="pt-2">—</div><div class="pipe-sub" id="ps-2-sub"></div></div>
+      <div class="pipe-step" id="ps-3"><div class="pipe-num">③ HASHING</div><div class="pipe-time" id="pt-3">—</div><div class="pipe-sub" id="ps-3-sub"></div></div>
+      <div class="pipe-step" id="ps-4"><div class="pipe-num">④ DB LOOKUP</div><div class="pipe-time" id="pt-4">—</div><div class="pipe-sub" id="ps-4-sub"></div></div>
+      <div class="pipe-step" id="ps-5"><div class="pipe-num">⑤ SCORING</div><div class="pipe-time" id="pt-5">—</div><div class="pipe-sub" id="ps-5-sub"></div></div>
+    </div>
+
+    <!-- Match banner -->
+    <div class="match-banner" id="match-banner">
+      <div class="match-label" id="match-label">Match Found</div>
+      <div class="match-song" id="match-song"></div>
+      <div class="match-score" id="match-score"></div>
+    </div>
+
+    <!-- Results -->
+    <div id="id-results" class="hidden">
+
+      <!-- Candidate scores -->
+      <div class="card step-card">
+        <div class="step-header">
+          <span class="step-num">CANDIDATE SCORES</span>
+        </div>
+        <div id="candidates-list"></div>
+      </div>
+
+      <!-- Step 1: Spectrogram + Constellation -->
+      <div class="card step-card">
+        <div class="step-header">
+          <span class="step-num">STEP 1 · FEATURE EXTRACTION</span>
+        </div>
+        <div class="step-title" style="margin-bottom:8px">From spectrogram to constellation</div>
+        <p class="step-desc">
+          The clip is converted to a time-frequency map (left) — brighter = louder at that frequency and moment.
+          From that image, only the <strong class="hl" id="peak-count-label">most prominent peaks</strong> are kept (right).
+          Discarding amplitude keeps the fingerprint robust to volume changes, EQ, and mild noise.
+        </p>
+        <div class="plot-grid">
+          <div class="plot-wrap"><canvas id="cv-spec"></canvas><span class="plot-label">spectrogram</span></div>
+          <div class="plot-wrap"><canvas id="cv-const"></canvas><span class="plot-label">constellation</span></div>
+        </div>
+      </div>
+
+      <!-- Step 2: DB search -->
+      <div class="card step-card">
+        <div class="step-header">
+          <span class="step-num">STEP 2 · DATABASE SEARCH</span>
+        </div>
+        <div class="step-title" style="margin-bottom:8px">Where in the song?</div>
+        <p class="step-desc">
+          Full constellation of the matched song stored in the database.
+          The highlighted window shows exactly where the query clip sits inside the full track.
+        </p>
+        <div class="plot-wrap"><canvas id="cv-dbconst"></canvas></div>
+      </div>
+
+      <!-- Step 3: Offset histogram -->
+      <div class="card step-card">
+        <div class="step-header">
+          <span class="step-num">STEP 3 · THE PROOF</span>
+        </div>
+        <div class="step-title" style="margin-bottom:8px">The alignment spike</div>
+        <p class="step-desc" id="hist-desc">
+          Every matched hash votes for a time offset (database frame − query frame).
+          Chance matches scatter randomly — a genuine match makes them converge.
+        </p>
+        <div class="plot-wrap"><canvas id="cv-hist"></canvas></div>
+      </div>
+
+    </div><!-- /id-results -->
+  </div><!-- /identify -->
+
+  <!-- ══════════════ BATCH TAB ══════════════ -->
+  <div class="tab-panel" id="tab-batch">
+    <div class="eyebrow">Batch</div>
+    <h1>Identify Many Clips at Once</h1>
+    <p class="subtitle">Upload a set of query clips. Each is identified against the indexed library and results are written to <code style="color:var(--teal)">results.csv</code>.</p>
+
+    <div class="card">
+      <div class="card-label">Upload clips</div>
+      <div class="upload-zone" id="batch-drop">
+        <input type="file" id="batch-file" accept="audio/*" multiple/>
+        <div class="upload-icon">⬆</div>
+        <div class="upload-label">Drop audio files or click to browse</div>
+        <div class="upload-hint">Select multiple files · WAV · MP3 · FLAC · OGG · M4A</div>
+      </div>
+      <div class="spacer"></div>
+      <button class="btn btn-primary" id="batch-btn" disabled>Run Batch</button>
+    </div>
+
+    <div id="batch-results" class="hidden">
+      <div class="card">
+        <div class="card-label">Results</div>
+        <div class="progress-bar"><div class="progress-fill" id="batch-progress" style="width:0%"></div></div>
+        <div id="batch-list" class="batch-file-list"></div>
+      </div>
+      <button class="btn btn-ghost" id="batch-download" style="margin-top:8px">⬇ Download results.csv</button>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+//  CONSTANTS — must match the Python indexer
+// ═══════════════════════════════════════════════════════════════════════
+const SR        = 11025;
+const N_FFT     = 4096;
+const HOP       = 512;
+const NEIGHBOR  = 35;
+const FLOOR_DB  = -35;
+const FAN_OUT   = 5;
+const DT_MIN    = 1,  DT_MAX = 50;
+const DF_MAX    = 100;
+const N_BINS    = N_FFT / 2 + 1;   // 2049 freq bins
+
+// ═══════════════════════════════════════════════════════════════════════
+//  GLOBALS
+// ═══════════════════════════════════════════════════════════════════════
+let DB = null;          // { song_names, db, params }
+let currentAudio = null;
+let currentFileName = '';
+let batchFiles = [];
+
+// ═══════════════════════════════════════════════════════════════════════
+//  LOAD DATABASE
+// ═══════════════════════════════════════════════════════════════════════
+async function loadDB() {
+  const statusEl   = document.getElementById('db-status');
+  const progressEl = document.getElementById('db-progress');
+  try {
+    statusEl.textContent = 'Fetching fingerprint database…';
+    const res = await fetch('fingerprint_db.json');
+    const total = +res.headers.get('Content-Length') || 0;
+    const reader = res.body.getReader();
+    let received = 0; const chunks = [];
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value); received += value.length;
+      if (total) progressEl.style.width = Math.round(received/total*80) + '%';
+    }
+    statusEl.textContent = 'Parsing database…';
+    progressEl.style.width = '90%';
+    const blob = new Blob(chunks);
+    const text = await blob.text();
+    DB = JSON.parse(text);
+    progressEl.style.width = '100%';
+    statusEl.textContent = `Loaded — ${Object.keys(DB.db).length.toLocaleString()} hashes · ${Object.keys(DB.song_names).length} songs`;
+    await new Promise(r => setTimeout(r, 400));
+    document.getElementById('db-loading').classList.add('hidden');
+    initApp();
+  } catch(e) {
+    statusEl.textContent = 'Error loading database: ' + e.message;
+    console.error(e);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  AUDIO DECODING + RESAMPLING
+// ═══════════════════════════════════════════════════════════════════════
+async function decodeAudio(file) {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: SR });
+  const buf = await file.arrayBuffer();
+  const decoded = await ctx.decodeAudioData(buf);
+  // Mix down to mono
+  let mono;
+  if (decoded.numberOfChannels === 1) {
+    mono = decoded.getChannelData(0);
+  } else {
+    mono = new Float32Array(decoded.length);
+    for (let c = 0; c < decoded.numberOfChannels; c++) {
+      const ch = decoded.getChannelData(c);
+      for (let i = 0; i < mono.length; i++) mono[i] += ch[i];
+    }
+    const n = decoded.numberOfChannels;
+    for (let i = 0; i < mono.length; i++) mono[i] /= n;
+  }
+  // Resample to SR if needed
+  if (decoded.sampleRate !== SR) {
+    const ratio    = SR / decoded.sampleRate;
+    const outLen   = Math.round(mono.length * ratio);
+    const offCtx   = new OfflineAudioContext(1, outLen, SR);
+    const srcBuf   = offCtx.createBuffer(1, mono.length, decoded.sampleRate);
+    srcBuf.copyToChannel(mono, 0);
+    const src = offCtx.createBufferSource();
+    src.buffer = srcBuf; src.connect(offCtx.destination); src.start();
+    const rendered = await offCtx.startRendering();
+    mono = rendered.getChannelData(0);
+  }
+  await ctx.close();
+  return mono;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  FFT (Cooley-Tukey radix-2)
+// ═══════════════════════════════════════════════════════════════════════
+function fft(re, im) {
+  const n = re.length;
+  // Bit-reversal
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) { [re[i],re[j]] = [re[j],re[i]]; [im[i],im[j]] = [im[j],im[i]]; }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = -2 * Math.PI / len;
+    const wRe = Math.cos(ang), wIm = Math.sin(ang);
+    for (let i = 0; i < n; i += len) {
+      let curRe = 1, curIm = 0;
+      for (let j = 0; j < len/2; j++) {
+        const uRe = re[i+j], uIm = im[i+j];
+        const vRe = re[i+j+len/2]*curRe - im[i+j+len/2]*curIm;
+        const vIm = re[i+j+len/2]*curIm + im[i+j+len/2]*curRe;
+        re[i+j] = uRe+vRe; im[i+j] = uIm+vIm;
+        re[i+j+len/2] = uRe-vRe; im[i+j+len/2] = uIm-vIm;
+        const nr = curRe*wRe - curIm*wIm;
+        curIm = curRe*wIm + curIm*wRe; curRe = nr;
+      }
+    }
+  }
+}
+
+// Hann window
+function hannWindow(n) {
+  const w = new Float32Array(n);
+  for (let i = 0; i < n; i++) w[i] = 0.5*(1 - Math.cos(2*Math.PI*i/(n-1)));
+  return w;
+}
+const HANN = hannWindow(N_FFT);
+
+// ═══════════════════════════════════════════════════════════════════════
+//  STFT → magnitude spectrogram (dB)
+// ═══════════════════════════════════════════════════════════════════════
+function computeSTFT(samples) {
+  const nFrames = Math.floor((samples.length - N_FFT) / HOP) + 1;
+  // S[freq][frame] in dB
+  const S = [];
+  for (let f = 0; f < N_BINS; f++) S.push(new Float32Array(nFrames));
+
+  let maxMag = 0;
+  const mags = []; // store raw mags first to find max
+  for (let m = 0; m < nFrames; m++) {
+    const re = new Float32Array(N_FFT);
+    const im = new Float32Array(N_FFT);
+    const off = m * HOP;
+    for (let n = 0; n < N_FFT; n++) re[n] = (samples[off+n] || 0) * HANN[n];
+    fft(re, im);
+    const frame = new Float32Array(N_BINS);
+    for (let k = 0; k < N_BINS; k++) {
+      const mag = Math.sqrt(re[k]*re[k] + im[k]*im[k]);
+      frame[k] = mag;
+      if (mag > maxMag) maxMag = mag;
+    }
+    mags.push(frame);
+  }
+  // Convert to dB relative to max
+  const ref = maxMag + 1e-10;
+  for (let m = 0; m < nFrames; m++) {
+    for (let k = 0; k < N_BINS; k++) {
+      S[k][m] = 20 * Math.log10(mags[m][k] / ref + 1e-10);
+    }
+  }
+  return { S, nFrames };
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  LOCAL MAXIMUM PEAK PICKING
+// ═══════════════════════════════════════════════════════════════════════
+function getPeaks(S, nFrames) {
+  const half = Math.floor(NEIGHBOR / 2);
+  const peaks = []; // [{t, f}]
+  for (let m = 0; m < nFrames; m++) {
+    for (let k = 0; k < N_BINS; k++) {
+      const val = S[k][m];
+      if (val < FLOOR_DB) continue;
+      // Check if local max in neighborhood
+      let isMax = true;
+      outer: for (let dm = -half; dm <= half; dm++) {
+        for (let dk = -half; dk <= half; dk++) {
+          if (dm === 0 && dk === 0) continue;
+          const nm = m+dm, nk = k+dk;
+          if (nm < 0 || nm >= nFrames || nk < 0 || nk >= N_BINS) continue;
+          if (S[nk][nm] > val) { isMax = false; break outer; }
+        }
+      }
+      if (isMax) peaks.push({ t: m, f: k });
+    }
+  }
+  return peaks;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  HASHING
+// ═══════════════════════════════════════════════════════════════════════
+function makeHashes(peaks) {
+  // Sort by time
+  peaks.sort((a,b) => a.t - b.t);
+  const hashes = []; // [{key, t1}]
+  for (let i = 0; i < peaks.length; i++) {
+    const { t: t1, f: f1 } = peaks[i];
+    let partners = 0;
+    for (let j = i+1; j < peaks.length && partners < FAN_OUT; j++) {
+      const dt = peaks[j].t - t1;
+      if (dt < DT_MIN) continue;
+      if (dt > DT_MAX) break;
+      if (Math.abs(peaks[j].f - f1) <= DF_MAX) {
+        hashes.push({ key: `${f1},${peaks[j].f},${dt}`, t1 });
+        partners++;
+      }
+    }
+  }
+  return hashes;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  MATCHING
+// ═══════════════════════════════════════════════════════════════════════
+function matchQuery(hashes) {
+  // offsets[songId][offset] = count
+  const offsets = {};
+  for (const { key, t1: t1q } of hashes) {
+    const entries = DB.db[key];
+    if (!entries) continue;
+    for (const [songId, t1db] of entries) {
+      const sid = String(songId);
+      if (!offsets[sid]) offsets[sid] = {};
+      const off = t1db - t1q;
+      offsets[sid][off] = (offsets[sid][off] || 0) + 1;
+    }
+  }
+  // Score = max bin per song
+  const scores = {};
+  for (const [sid, hist] of Object.entries(offsets)) {
+    scores[sid] = Math.max(...Object.values(hist));
+  }
+  const ranked = Object.entries(scores).sort((a,b) => b[1]-a[1]);
+  return { ranked, offsets };
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  DRAW: SPECTROGRAM
+// ═══════════════════════════════════════════════════════════════════════
+function drawSpectrogram(canvas, S, nFrames, maxFreqBin) {
+  const W = 700, H = 280;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#060c12'; ctx.fillRect(0,0,W,H);
+  const imgData = ctx.createImageData(W, H);
+  const data = imgData.data;
+  const showBins = maxFreqBin || Math.min(N_BINS, 512);
+
+  for (let px = 0; px < W; px++) {
+    const m = Math.floor(px / W * nFrames);
+    for (let py = 0; py < H; py++) {
+      const k = Math.floor((1 - py/H) * showBins);
+      if (k < 0 || k >= N_BINS) continue;
+      const db = S[k][m];
+      // Map dB range [-80, 0] to colour (magma-like)
+      const t = Math.max(0, Math.min(1, (db - FLOOR_DB) / (-FLOOR_DB)));
+      const idx = (py * W + px) * 4;
+      // Magma palette approximation
+      data[idx]   = Math.round(t < 0.5 ? t*2*150 + 20 : 150 + (t-0.5)*2*105);
+      data[idx+1] = Math.round(t < 0.33 ? 0 : t < 0.66 ? (t-0.33)*3*120 : 120 + (t-0.66)*3*135);
+      data[idx+2] = Math.round(t < 0.33 ? t*3*200 : t < 0.66 ? 200 - (t-0.33)*3*200 : 0);
+      data[idx+3] = 255;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+
+  // Axes labels
+  ctx.fillStyle = 'rgba(74,101,128,0.9)';
+  ctx.font = '10px JetBrains Mono, monospace';
+  ctx.fillText('0 Hz', 4, H-4);
+  const maxHz = Math.round(showBins * SR / N_FFT);
+  ctx.fillText(`${maxHz} Hz`, 4, 14);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  DRAW: CONSTELLATION
+// ═══════════════════════════════════════════════════════════════════════
+function drawConstellation(canvas, peaks, nFrames, maxFreqBin, highlightRange) {
+  const W = 700, H = 280;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#060c12'; ctx.fillRect(0,0,W,H);
+  const showBins = maxFreqBin || Math.min(N_BINS, 512);
+
+  // Optional highlight window
+  if (highlightRange) {
+    const x1 = highlightRange[0] / nFrames * W;
+    const x2 = highlightRange[1] / nFrames * W;
+    ctx.fillStyle = 'rgba(0,201,167,0.08)';
+    ctx.fillRect(x1, 0, x2-x1, H);
+    ctx.strokeStyle = 'rgba(0,201,167,0.4)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x1, 0, x2-x1, H);
+  }
+
+  // Colour peaks by frequency band
+  const colours = ['#00c9a7','#1a6aff','#e040fb','#ff6b35','#00e676'];
+  for (const { t, f } of peaks) {
+    const x = t / nFrames * W;
+    const y = (1 - f / showBins) * H;
+    if (y < 0 || y > H) continue;
+    const ci = Math.floor(f / showBins * colours.length);
+    ctx.fillStyle = colours[Math.min(ci, colours.length-1)];
+    ctx.fillRect(x-1, y-1, 2, 2);
+  }
+
+  ctx.fillStyle = 'rgba(74,101,128,0.9)';
+  ctx.font = '10px JetBrains Mono, monospace';
+  ctx.fillText(`${peaks.length.toLocaleString()} peaks`, 4, 14);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  DRAW: OFFSET HISTOGRAM
+// ═══════════════════════════════════════════════════════════════════════
+function drawHistogram(canvas, hist, peakOffset) {
+  const W = 700, H = 220;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#060c12'; ctx.fillRect(0,0,W,H);
+
+  const offsets = Object.keys(hist).map(Number).sort((a,b)=>a-b);
+  if (!offsets.length) return;
+  const minO = offsets[0], maxO = offsets[offsets.length-1];
+  const maxCount = Math.max(...Object.values(hist));
+  const PAD = { l:40, r:20, t:20, b:30 };
+  const PW = W - PAD.l - PAD.r, PH = H - PAD.t - PAD.b;
+
+  // Grid lines
+  ctx.strokeStyle = '#1a3350'; ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = PAD.t + PH - i/4*PH;
+    ctx.beginPath(); ctx.moveTo(PAD.l, y); ctx.lineTo(W-PAD.r, y); ctx.stroke();
+    ctx.fillStyle = '#4a6580'; ctx.font = '9px JetBrains Mono, monospace';
+    ctx.fillText(Math.round(maxCount*i/4), 2, y+3);
+  }
+
+  // Bars
+  const range = maxO - minO || 1;
+  const barW  = Math.max(1, PW / (range + 1));
+  for (const [off, cnt] of Object.entries(hist)) {
+    const x = PAD.l + (Number(off)-minO)/range * PW;
+    const bh = cnt/maxCount * PH;
+    const isP = Number(off) === peakOffset;
+    ctx.fillStyle = isP ? '#00c9a7' : 'rgba(26,106,255,0.5)';
+    ctx.fillRect(x, PAD.t + PH - bh, Math.max(barW, 1), bh);
+  }
+
+  // Peak annotation
+  const px = PAD.l + (peakOffset-minO)/range * PW;
+  ctx.strokeStyle = '#ff6b35'; ctx.lineWidth = 1.5; ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.moveTo(px, PAD.t); ctx.lineTo(px, PAD.t+PH); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#ff6b35'; ctx.font = '10px JetBrains Mono, monospace';
+  const label = `${hist[peakOffset].toLocaleString()} hashes\nalign here`;
+  const lx = px + 6 > W-120 ? px-80 : px+6;
+  ctx.fillText(`${hist[peakOffset].toLocaleString()} hashes`, lx, PAD.t+22);
+  ctx.fillText('align here', lx, PAD.t+34);
+
+  // X axis label
+  ctx.fillStyle = '#4a6580'; ctx.font = '10px JetBrains Mono, monospace';
+  ctx.fillText('time offset (database frame − query frame)', PAD.l, H-6);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  LIBRARY MINI-CONSTELLATION THUMBNAILS
+// ═══════════════════════════════════════════════════════════════════════
+function drawLibThumb(canvas, songId) {
+  const W = 160, H = 160;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#060c12'; ctx.fillRect(0,0,W,H);
+  // Generate a pseudo-random constellation unique to this song
+  // (derived from actual hash keys for this song)
+  const colours = ['#00c9a7','#1a6aff','#e040fb','#ff6b35','#00e676','#ffca28'];
+  let count = 0;
+  const sid = Number(songId);
+  for (const [key, entries] of Object.entries(DB.db)) {
+    for (const [sId, t1] of entries) {
+      if (sId !== sid) continue;
+      const parts = key.split(',');
+      const f1 = Number(parts[0]), dt = Number(parts[2]);
+      const x = (t1 % 3000) / 3000 * W;
+      const y = (1 - f1 / N_BINS) * H;
+      const ci = Math.floor(f1 / N_BINS * colours.length);
+      ctx.fillStyle = colours[Math.min(ci, colours.length-1)];
+      ctx.fillRect(x, y, 1.5, 1.5);
+      count++;
+      if (count > 2000) break;
+    }
+    if (count > 2000) break;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  INIT APP
+// ═══════════════════════════════════════════════════════════════════════
+function initApp() {
+  setupTabs();
+  buildLibrary();
+  setupIdentify();
+  setupBatch();
+}
+
+function setupTabs() {
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+}
+
+function buildLibrary() {
+  const grid = document.getElementById('lib-grid');
+  const names = DB.song_names;
+  // Count hashes per song
+  const hashCounts = {};
+  for (const [key, entries] of Object.entries(DB.db)) {
+    for (const [sid] of entries) {
+      hashCounts[sid] = (hashCounts[sid] || 0) + 1;
+    }
+  }
+  for (const [id, name] of Object.entries(names)) {
+    const card = document.createElement('div');
+    card.className = 'lib-card';
+    const wrap = document.createElement('div');
+    wrap.className = 'lib-canvas-wrap';
+    const cv = document.createElement('canvas');
+    wrap.appendChild(cv);
+    const info = document.createElement('div');
+    info.className = 'lib-info';
+    info.innerHTML = `<div class="lib-name" title="${name}">${name}</div>
+      <div class="lib-hashes">${(hashCounts[Number(id)]||0).toLocaleString()} hashes</div>`;
+    card.appendChild(wrap); card.appendChild(info);
+    grid.appendChild(card);
+    // Draw thumbnail lazily
+    const obs = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) { drawLibThumb(cv, id); obs.disconnect(); }
+    });
+    obs.observe(card);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  IDENTIFY
+// ═══════════════════════════════════════════════════════════════════════
+function setupIdentify() {
+  const fileInput = document.getElementById('id-file');
+  const dropZone  = document.getElementById('id-drop');
+  const idBtn     = document.getElementById('id-btn');
+
+  // Drag-drop
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault(); dropZone.classList.remove('drag');
+    const f = e.dataTransfer.files[0]; if (f) selectIdFile(f);
+  });
+  fileInput.addEventListener('change', () => { if (fileInput.files[0]) selectIdFile(fileInput.files[0]); });
+  idBtn.addEventListener('click', runIdentify);
+
+  // Sample clips (placeholder — replace with real sample files if available)
+  const sampleList = document.getElementById('sample-list');
+  // We show a message instead of fake samples
+  sampleList.innerHTML = `<div class="text-muted" style="font-size:12px;padding:8px 0">Upload any clip from your song library to test identification.</div>`;
+}
+
+function selectIdFile(file) {
+  currentAudio = file;
+  currentFileName = file.name;
+  document.getElementById('id-filename').textContent = `📄 ${file.name} (${(file.size/1e6).toFixed(1)} MB)`;
+  document.getElementById('id-btn').disabled = false;
+  // Hide old results
+  document.getElementById('match-banner').classList.remove('show','fail');
+  document.getElementById('id-results').classList.add('hidden');
+  document.getElementById('pipeline').classList.add('hidden');
+}
+
+function setPipeStep(n, ms, sub) {
+  document.getElementById(`pt-${n}`).textContent = ms < 1000 ? `${ms} ms` : `${(ms/1000).toFixed(1)} s`;
+  if (sub) document.getElementById(`ps-${n}-sub`).textContent = sub;
+  document.getElementById(`ps-${n}`).classList.add('done');
+}
+
+async function runIdentify() {
+  if (!currentAudio) return;
+  const btn = document.getElementById('id-btn');
+  btn.disabled = true; btn.textContent = 'Identifying…';
+
+  document.getElementById('pipeline').classList.remove('hidden');
+  // Reset pipeline
+  for (let i=1;i<=5;i++) {
+    document.getElementById(`pt-${i}`).textContent = '—';
+    document.getElementById(`ps-${i}-sub`).textContent = '';
+    document.getElementById(`ps-${i}`).classList.remove('done');
+  }
+  document.getElementById('match-banner').classList.remove('show','fail');
+  document.getElementById('id-results').classList.add('hidden');
+
+  try {
+    // Step 1: Decode + Spectrogram
+    let t0 = performance.now();
+    const samples = await decodeAudio(currentAudio);
+    const { S, nFrames } = computeSTFT(samples);
+    const t1ms = Math.round(performance.now()-t0);
+    setPipeStep(1, t1ms, `${nFrames} frames`);
+
+    // Step 2: Constellation
+    t0 = performance.now();
+    const peaks = getPeaks(S, nFrames);
+    const t2ms = Math.round(performance.now()-t0);
+    setPipeStep(2, t2ms, `${peaks.length} peaks`);
+
+    // Step 3: Hashing
+    t0 = performance.now();
+    const hashes = makeHashes(peaks);
+    const t3ms = Math.round(performance.now()-t0);
+    setPipeStep(3, t3ms, `${hashes.length.toLocaleString()} hashes`);
+
+    // Step 4: DB Lookup
+    t0 = performance.now();
+    const { ranked, offsets } = matchQuery(hashes);
+    const t4ms = Math.round(performance.now()-t0);
+    setPipeStep(4, t4ms, `${Object.keys(DB.song_names).length} tracks`);
+
+    // Step 5: Scoring
+    t0 = performance.now();
+    const winner = ranked[0];
+    const t5ms = Math.round(performance.now()-t0);
+    const topOffset = winner ? (() => {
+      const hist = offsets[winner[0]];
+      return Number(Object.entries(hist).sort((a,b)=>b[1]-a[1])[0][0]);
+    })() : 0;
+    setPipeStep(5, t5ms, winner ? `offset ${topOffset}` : 'no match');
+
+    // Show result
+    const banner = document.getElementById('match-banner');
+    if (winner && winner[1] > 3) {
+      const songName = DB.song_names[winner[0]];
+      document.getElementById('match-label').textContent = 'Match Found';
+      document.getElementById('match-song').textContent = songName;
+      document.getElementById('match-score').textContent =
+        `${winner[1].toLocaleString()} hashes aligned · ${ranked.length} candidates evaluated`;
+      banner.classList.remove('fail'); banner.classList.add('show');
+      renderResults(S, nFrames, peaks, hashes, ranked, offsets, winner, topOffset);
+    } else {
+      document.getElementById('match-label').textContent = 'No Match Found';
+      document.getElementById('match-song').textContent = 'Could not identify clip';
+      document.getElementById('match-score').textContent = 'Try a longer clip or a less noisy recording.';
+      banner.classList.add('fail','show');
+    }
+  } catch(e) {
+    console.error(e);
+    alert('Error: ' + e.message);
+  }
+
+  btn.disabled = false; btn.textContent = 'Identify';
+}
+
+function renderResults(S, nFrames, peaks, hashes, ranked, offsets, winner, topOffset) {
+  // Candidate scores
+  const list = document.getElementById('candidates-list');
+  list.innerHTML = '';
+  const maxScore = ranked[0][1];
+  ranked.slice(0, 8).forEach(([sid, sc], i) => {
+    const name = DB.song_names[sid];
+    const pct  = Math.round(sc/maxScore*100);
+    const row  = document.createElement('div');
+    row.className = 'candidate-row';
+    row.innerHTML = `
+      <div class="candidate-name">${name}</div>
+      <div class="bar-track"><div class="bar-fill ${i>0?'other':''}" style="width:${pct}%">
+        <span class="bar-val">${sc.toLocaleString()}</span></div></div>`;
+    list.appendChild(row);
+  });
+
+  // Peak count label
+  document.getElementById('peak-count-label').textContent =
+    `${peaks.length.toLocaleString()} most prominent peaks`;
+
+  // Spectrogram
+  const cvSpec = document.getElementById('cv-spec');
+  drawSpectrogram(cvSpec, S, nFrames, 512);
+
+  // Query constellation
+  const cvConst = document.getElementById('cv-const');
+  drawConstellation(cvConst, peaks, nFrames, 512);
+
+  // DB constellation of winner with highlight
+  const cvDB = document.getElementById('cv-dbconst');
+  // Reconstruct winner's constellation from DB hashes
+  const winSid = Number(winner[0]);
+  const dbPeaks = [];
+  const seen = new Set();
+  for (const [key, entries] of Object.entries(DB.db)) {
+    for (const [sid, t1] of entries) {
+      if (sid !== winSid) continue;
+      const f1 = Number(key.split(',')[0]);
+      const pk = `${t1},${f1}`;
+      if (!seen.has(pk)) { seen.add(pk); dbPeaks.push({ t: t1, f: f1 }); }
+      if (dbPeaks.length > 8000) break;
+    }
+    if (dbPeaks.length > 8000) break;
+  }
+  const maxT = Math.max(...dbPeaks.map(p=>p.t)) + 100;
+  const queryLen = nFrames;
+  drawConstellation(cvDB, dbPeaks, maxT, 512, [topOffset, topOffset + queryLen]);
+
+  // Histogram
+  const cvHist = document.getElementById('cv-hist');
+  const hist = offsets[winner[0]];
+  drawHistogram(cvHist, hist, topOffset);
+  const peakVotes = hist[topOffset];
+  document.getElementById('hist-desc').innerHTML =
+    `Every matched hash votes for a time offset (database frame − query frame). Chance matches
+     scatter randomly, forming a flat noise floor. A genuine match makes them converge:
+     <strong class="hl">${peakVotes.toLocaleString()} hashes agreed on a single offset</strong>.
+     That spike cannot be a coincidence.`;
+
+  document.getElementById('id-results').classList.remove('hidden');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  BATCH
+// ═══════════════════════════════════════════════════════════════════════
+function setupBatch() {
+  const fileInput = document.getElementById('batch-file');
+  const dropZone  = document.getElementById('batch-drop');
+  const runBtn    = document.getElementById('batch-btn');
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault(); dropZone.classList.remove('drag');
+    selectBatchFiles([...e.dataTransfer.files]);
+  });
+  fileInput.addEventListener('change', () => selectBatchFiles([...fileInput.files]));
+  runBtn.addEventListener('click', runBatch);
+  document.getElementById('batch-download').addEventListener('click', downloadCSV);
+}
+
+function selectBatchFiles(files) {
+  batchFiles = files.filter(f => f.type.startsWith('audio/') ||
+    /\.(mp3|wav|flac|ogg|m4a|aac)$/i.test(f.name));
+  document.getElementById('batch-btn').disabled = batchFiles.length === 0;
+  // Show file list
+  const listEl = document.getElementById('batch-list');
+  listEl.innerHTML = '';
+  batchFiles.forEach(f => {
+    const row = document.createElement('div');
+    row.className = 'batch-file-row';
+    row.innerHTML = `<span class="bf-name">${f.name}</span>
+      <span class="bf-status" id="bs-${f.name.replace(/\W/g,'_')}">Queued</span>
+      <span class="bf-result" id="br-${f.name.replace(/\W/g,'_')}">—</span>`;
+    listEl.appendChild(row);
+  });
+  document.getElementById('batch-results').classList.remove('hidden');
+  document.getElementById('batch-progress').style.width = '0%';
+}
+
+let batchCSVData = [];
+
+async function runBatch() {
+  if (!batchFiles.length) return;
+  const runBtn = document.getElementById('batch-btn');
+  runBtn.disabled = true; runBtn.textContent = 'Running…';
+  batchCSVData = [['filename','prediction']];
+
+  for (let i = 0; i < batchFiles.length; i++) {
+    const f = batchFiles[i];
+    const safeId = f.name.replace(/\W/g,'_');
+    const statusEl = document.getElementById(`bs-${safeId}`);
+    const resultEl = document.getElementById(`br-${safeId}`);
+    statusEl.textContent = 'Processing…';
+    statusEl.className = 'bf-status running';
+    try {
+      const samples = await decodeAudio(f);
+      const { S, nFrames } = computeSTFT(samples);
+      const peaks = getPeaks(S, nFrames);
+      const hashes = makeHashes(peaks);
+      const { ranked } = matchQuery(hashes);
+      const prediction = (ranked.length && ranked[0][1] > 3)
+        ? DB.song_names[ranked[0][0]]
+        : 'none';
+      // filename without extension
+      const filenameNoExt = f.name.replace(/\.[^.]+$/, '');
+      batchCSVData.push([filenameNoExt, prediction]);
+      resultEl.textContent = prediction;
+      statusEl.textContent = '✓ Done';
+      statusEl.className = 'bf-status done';
+    } catch(e) {
+      batchCSVData.push([f.name.replace(/\.[^.]+$/, ''), 'none']);
+      statusEl.textContent = '✗ Error';
+      resultEl.textContent = e.message;
+    }
+    document.getElementById('batch-progress').style.width =
+      Math.round((i+1)/batchFiles.length*100) + '%';
+  }
+  runBtn.disabled = false; runBtn.textContent = 'Run Batch';
+}
+
+function downloadCSV() {
+  if (batchCSVData.length < 2) return;
+  const csv = batchCSVData.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'results.csv';
+  a.click();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════════════════════════
+loadDB();
+</script>
+</body>
+</html>
