@@ -1,4 +1,4 @@
-import os, json, time, collections
+import os, json, time, collections, urllib.request
 import numpy as np
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -9,6 +9,19 @@ CORS(app)
 
 # ── Load DB once at startup ───────────────────────────────────────────────────
 DB_PATH = os.environ.get("DB_PATH", "fingerprint_db.json")
+DB_URL  = os.environ.get("DB_URL")  # e.g. a GitHub Release asset URL
+
+if not os.path.exists(DB_PATH) or os.path.getsize(DB_PATH) == 0:
+    if not DB_URL:
+        raise RuntimeError(
+            f"{DB_PATH} not found locally and DB_URL is not set. "
+            "Set the DB_URL env var to a direct download link for fingerprint_db.json."
+        )
+    print(f"{DB_PATH} not found locally, downloading from {DB_URL} …", flush=True)
+    t_dl = time.time()
+    urllib.request.urlretrieve(DB_URL, DB_PATH)
+    size_mb = os.path.getsize(DB_PATH) / (1024 * 1024)
+    print(f"Downloaded {size_mb:.1f} MB in {time.time() - t_dl:.1f}s", flush=True)
 
 print(f"Loading database from {DB_PATH} …", flush=True)
 t0 = time.time()
